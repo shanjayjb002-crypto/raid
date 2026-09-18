@@ -33,7 +33,11 @@ _step: interaction
 interaction: NAME "->" NAME ":" NAME "(" param_list? ")" annotation_block? _NL
 
 param_list: param ("," param)*
-param: NAME ":" NAME
+
+// The type is optional. A diagram in progress often names arguments before it
+// has decided their types, and RAID scores that incompleteness (see
+// raid.sufficiency) rather than refusing to parse it.
+param: NAME (":" NAME)?
 
 // --- Branching ------------------------------------------------------------
 

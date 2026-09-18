@@ -38,16 +38,23 @@ AnnotationValue = Union[int, float, str]
 
 @dataclass(frozen=True)
 class Parameter:
-    """A single typed parameter of an interaction, e.g. ``itemId:int``.
+    """A single parameter of an interaction, e.g. ``itemId:int`` or ``itemId``.
 
-    ``type`` is kept as the raw type name written in the diagram. The DSL does
-    not have a fixed type system: the boundary-value test generator in
-    ``testgen`` is what attaches meaning (ranges, edge cases) to names like
-    ``int`` or ``float``, so the parser stays agnostic.
+    ``type`` is kept as the raw type name written in the diagram, or ``None``
+    when the author did not give one. The DSL does not have a fixed type
+    system: the boundary-value test generator in ``testgen`` is what attaches
+    meaning (ranges, edge cases) to names like ``int`` or ``float``, so the
+    parser stays agnostic.
+
+    An untyped parameter is deliberately allowed. A diagram being drawn is
+    normally incomplete, and RAID's value is in scoring that incompleteness
+    (``raid.sufficiency``) rather than rejecting it - the same reasoning that
+    makes an undeclared service a completeness problem rather than a parse
+    error.
     """
 
     name: str
-    type: str
+    type: str | None = None
 
 
 @dataclass

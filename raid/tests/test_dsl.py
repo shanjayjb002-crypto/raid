@@ -131,6 +131,46 @@ def test_parses_interaction_parameters_with_types():
     ]
 
 
+def test_parses_untyped_parameters():
+    """A parameter may omit its type, leaving it ``None``.
+
+    Under-specified diagrams are the normal early state, and RAID's job is to
+    score that incompleteness rather than refuse to read it - the same reading
+    that lets an undeclared service through as a completeness problem instead
+    of a parse error. If the grammar forced a type here, the sufficiency
+    scorer's test-generation concern could never fire.
+    """
+    diagram = parse(
+        dsl(
+            """
+            flow PlaceOrder:
+              OrderService -> PaymentService : charge(amount, cardId)
+            """
+        )
+    )
+
+    assert diagram.flows[0].steps[0].parameters == [
+        Parameter(name="amount", type=None),
+        Parameter(name="cardId", type=None),
+    ]
+
+
+def test_parses_a_mix_of_typed_and_untyped_parameters():
+    diagram = parse(
+        dsl(
+            """
+            flow PlaceOrder:
+              OrderService -> PaymentService : charge(amount, cardId:string)
+            """
+        )
+    )
+
+    assert diagram.flows[0].steps[0].parameters == [
+        Parameter(name="amount", type=None),
+        Parameter(name="cardId", type="string"),
+    ]
+
+
 def test_parses_interaction_with_no_parameters():
     diagram = parse(
         dsl(

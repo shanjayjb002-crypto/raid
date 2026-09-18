@@ -244,20 +244,30 @@ def tokenize(name: str) -> list[str]:
     return [token.lower() for token in _SPLIT_PATTERN.split(name) if token]
 
 
-def _document(name: str, declared_type: str) -> str:
+def _document(name: str, declared_type: str | None) -> str:
     """Render a parameter as the text document the vectoriser consumes.
 
     The declared type is emitted as its own ``type=<t>`` token so it cannot be
     confused with a name token that happens to share its spelling (a parameter
     genuinely called ``string`` would otherwise be indistinguishable from the
     type ``string``).
+
+    An untyped parameter emits ``type=unknown``, a token absent from the
+    training vocabulary and therefore ignored by the vectoriser. The inference
+    then rests on the name alone, which still works but with visibly lower
+    confidence - exactly the signal the sufficiency scorer flags.
     """
-    return " ".join([*tokenize(name), f"type={declared_type.lower()}"])
+    marker = (declared_type or "unknown").lower()
+    return " ".join([*tokenize(name), f"type={marker}"])
 
 
-def _numeric_value(case: str, declared_type: str) -> object:
-    """Render a numeric boundary in the parameter's own declared type."""
-    is_float = declared_type.lower() in _FLOAT_TYPES
+def _numeric_value(case: str, declared_type: str | None) -> object:
+    """Render a numeric boundary in the parameter's own declared type.
+
+    An untyped parameter falls back to integer boundaries, the safer default:
+    an int value is accepted anywhere a float is, but not the reverse.
+    """
+    is_float = (declared_type or "").lower() in _FLOAT_TYPES
     if case == "zero":
         return 0.0 if is_float else 0
     if case == "negative":
@@ -283,7 +293,7 @@ _STATIC_VALUES: dict[tuple[str, str], object] = {
 }
 
 
-def _value_for(boundary_class: str, case: str, declared_type: str) -> object:
+def _value_for(boundary_class: str, case: str, declared_type: str | None) -> object:
     if boundary_class == "numeric":
         return _numeric_value(case, declared_type)
     return _STATIC_VALUES[(boundary_class, case)]

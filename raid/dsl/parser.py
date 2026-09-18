@@ -142,8 +142,11 @@ class _AstBuilder(Transformer):
         return list(children)
 
     def param(self, children: list) -> Parameter:
-        name, type_name = children
-        return Parameter(name=str(name), type=str(type_name))
+        name, *declared_type = children
+        return Parameter(
+            name=str(name),
+            type=str(declared_type[0]) if declared_type else None,
+        )
 
     def branch(self, children: list) -> Branch:
         condition, *rest = children
