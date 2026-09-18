@@ -333,6 +333,7 @@ def run_simulation(
         calls=tuple(
             CallStatistics(
                 step_index=r.step_index,
+                line=r.interaction.line,
                 caller=r.interaction.source,
                 service=r.interaction.target,
                 method=r.interaction.method,
@@ -346,6 +347,7 @@ def run_simulation(
         timeouts=tuple(
             TimeoutViolation(
                 step_index=r.step_index,
+                line=r.interaction.line,
                 caller=r.interaction.source,
                 service=r.interaction.target,
                 method=r.interaction.method,

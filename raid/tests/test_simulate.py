@@ -193,6 +193,20 @@ def test_payment_failure_makes_the_dependent_call_exceed_its_timeout(graph):
     assert violation.attributed_to == "PaymentService"
 
 
+def test_violations_and_call_stats_carry_the_source_line(graph):
+    """Findings must anchor back to the diagram element that produced them.
+
+    The trace layer joins a resilience finding to its interaction by source
+    line, so a violation that does not carry one cannot be attributed.
+    """
+    report = run_simulation(
+        graph, "PlaceOrder", failures=[Failure("PaymentService")], config=FAST
+    )
+
+    assert report.timeouts[0].line == 8  # the `charge` interaction
+    assert [call.line for call in report.calls] == [6, 8]
+
+
 def test_every_run_fails_when_the_service_is_fully_out(graph):
     report = run_simulation(
         graph, "PlaceOrder", failures=[Failure("PaymentService")], config=FAST

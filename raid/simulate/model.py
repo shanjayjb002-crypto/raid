@@ -109,6 +109,7 @@ class CallStatistics:
     """Observed behaviour of one call position in the simulated path."""
 
     step_index: int
+    line: int
     caller: str
     service: str
     method: str
@@ -127,6 +128,7 @@ class TimeoutViolation:
     """A call that ran past its timeout budget during the simulation."""
 
     step_index: int
+    line: int
     caller: str
     service: str
     method: str
