@@ -1,0 +1,77 @@
+// RAID architecture DSL grammar.
+//
+// Deliberately NOT PlantUML/Mermaid: this is RAID's own notation, designed so
+// that every construct carries the information the later analysis phases need
+// (typed parameters for boundary-value test generation, named branch
+// conditions for path labelling, annotations for resilience simulation).
+//
+// The language is indentation-sensitive. Rather than encoding block structure
+// in the grammar with braces, a post-lexer (`_DslIndenter` in parser.py) turns
+// leading whitespace into the `_INDENT` / `_DEDENT` tokens used below. This is
+// the same technique lark uses for its Python grammar, and it keeps diagrams
+// visually close to a sequence diagram's nesting.
+
+start: _NL? _statement*
+
+_statement: service_decl
+          | flow_decl
+
+// --- Declarations ---------------------------------------------------------
+
+service_decl: "service" NAME _NL
+
+flow_decl: "flow" NAME ":" _NL _INDENT _step+ _DEDENT
+
+// A step is inlined (leading underscore) so a flow's children are the
+// Interaction/Branch objects themselves, with no wrapper node in between.
+_step: interaction
+     | branch
+
+// --- Interactions ---------------------------------------------------------
+
+// e.g. OrderService -> InventoryService : checkStock(itemId:int, qty:int) [retry=3]
+interaction: NAME "->" NAME ":" NAME "(" param_list? ")" annotation_block? _NL
+
+param_list: param ("," param)*
+param: NAME ":" NAME
+
+// --- Branching ------------------------------------------------------------
+
+// `else_clause?` is what binds an `else` to the nearest *enclosing* alt whose
+// body has just been closed by a _DEDENT, giving correct nesting for free.
+branch: "alt" NAME ":" _NL _INDENT _step+ _DEDENT else_clause?
+else_clause: "else" NAME ":" _NL _INDENT _step+ _DEDENT
+
+// --- Annotations ----------------------------------------------------------
+
+// Parsed and stored for later phases (retry/timeout drive the SimPy
+// simulation), but given no meaning at this layer.
+annotation_block: "[" annotation ("," annotation)* "]"
+annotation: NAME "=" _annotation_value
+
+_annotation_value: DURATION
+                 | SIGNED_NUMBER
+                 | ESCAPED_STRING
+                 | NAME
+
+// --- Terminals ------------------------------------------------------------
+
+NAME: /[a-zA-Z_][a-zA-Z_0-9]*/
+
+// Given an explicit priority above SIGNED_NUMBER (which defaults to 0) so that
+// `250ms` lexes as a single duration token. Without it the lexer would take the
+// number `250` and then stall on the name `ms`.
+DURATION.5: /[0-9]+(\.[0-9]+)?(ms|s|m|h)\b/
+
+// Collapses runs of newlines, so blank lines between declarations are free.
+// The trailing whitespace is what the indenter measures to size the block.
+_NL: /(\r?\n[\t ]*)+/
+
+%import common.SIGNED_NUMBER
+%import common.ESCAPED_STRING
+%import common.WS_INLINE
+
+%ignore WS_INLINE
+
+// Supplied by the `_DslIndenter` post-lexer rather than matched from the text.
+%declare _INDENT _DEDENT
