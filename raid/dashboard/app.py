@@ -40,9 +40,18 @@ from raid.dashboard.builder import (  # noqa: E402
 )
 from raid.dashboard.pipeline import Analysis, AnalysisOptions, analyse, rows_to_csv  # noqa: E402
 
-#: Both input modes open showing this same diagram, and the visual builder
-#: compiles to it byte for byte (asserted in raid/tests/test_builder.py).
-EXAMPLE = LOGIN_DSL
+#: Shown greyed out in the empty code editor. This is a placeholder attribute,
+#: never a value: Streamlit returns "" for an untouched text area, so hitting
+#: analyse with nothing typed analyses nothing rather than silently analysing
+#: the hint. Both input modes start genuinely empty; the Login example is
+#: available only through the "Load example" button.
+_CODE_PLACEHOLDER = """service OrderService
+service PaymentService
+
+flow PlaceOrder:
+  OrderService -> PaymentService : charge(amount:float) [timeout=2s, retry=3]
+  alt payment_failed:
+    OrderService -> OrderService : rejectOrder()"""
 
 _SCORE_ICON = {"high": "🟢", "medium": "🟡", "low": "🔴"}
 _SEVERITY_ICON = {"high": "🔴", "medium": "🟡", "low": "🔵"}
@@ -134,6 +143,95 @@ def _copy_to_code(text: str) -> None:
     st.session_state["input_mode"] = "code"
 
 
+def _toggle_mode() -> None:
+    st.session_state["input_mode"] = (
+        "code" if st.session_state["input_mode"] == "visual" else "visual"
+    )
+
+
+def _reset_builder_widgets() -> None:
+    """Drop builder widget state that a replaced model would invalidate.
+
+    ``vb_flow`` keys a selectbox; leaving it pointing at a flow that no longer
+    exists would make Streamlit raise on the next run.
+    """
+    st.session_state.pop("vb_flow", None)
+    st.session_state["focus"] = None
+
+
+def _load_example() -> None:
+    """Fill the Login example into whichever input is currently active."""
+    if st.session_state["input_mode"] == "visual":
+        st.session_state["visual"] = login_example()
+        _reset_builder_widgets()
+    else:
+        st.session_state["code_text"] = LOGIN_DSL
+        st.session_state["focus"] = None
+
+
+def _clear_all() -> None:
+    """Empty whichever input is currently active."""
+    if st.session_state["input_mode"] == "visual":
+        st.session_state["visual"] = VisualDiagram()
+        _reset_builder_widgets()
+    else:
+        st.session_state["code_text"] = ""
+        st.session_state["focus"] = None
+
+
+def _render_input_controls() -> None:
+    """Load/clear buttons, shared by both tabs and shown above them.
+
+    They act on the *tracked* active mode rather than the visually open tab,
+    because ``st.tabs`` switches client-side without a rerun - the server is
+    never told which tab is in front. The active mode is therefore stated in
+    plain text next to the buttons, with a switch, so the target is explicit
+    rather than inferred. Editing either tab also makes it active, so in normal
+    use the buttons simply follow the user.
+    """
+    mode = st.session_state["input_mode"]
+    label = "Build visually" if mode == "visual" else "Edit as code"
+    other = "Edit as code" if mode == "visual" else "Build visually"
+
+    columns = st.columns([1, 1, 3.4, 1.4])
+    columns[0].button(
+        "Load example",
+        key="load_example",
+        on_click=_load_example,
+        width="stretch",
+        help=f"Fills the Login example into {label}.",
+    )
+    columns[1].button(
+        "Clear all",
+        key="clear_all",
+        on_click=_clear_all,
+        width="stretch",
+        help=f"Empties {label}.",
+    )
+    columns[2].caption(
+        f"These act on the active input: **{label}** — which is also what gets "
+        f"analysed. Editing either tab makes it active."
+    )
+    columns[3].button(
+        f"Switch to {other}",
+        key="swap_mode",
+        on_click=_toggle_mode,
+        width="stretch",
+    )
+
+
+def _render_code_tab() -> None:
+    st.caption("Type RAID DSL directly. Supports everything the builder does, plus nesting.")
+    st.text_area(
+        "Diagram (RAID DSL)",
+        key="code_text",
+        height=280,
+        placeholder=_CODE_PLACEHOLDER,
+        on_change=_use_code,
+        help="Starts empty. The greyed-out text is only a syntax hint.",
+    )
+
+
 def _render_service_builder() -> None:
     st.markdown("##### Services")
     with st.form("vb_add_service", clear_on_submit=True):
@@ -181,6 +279,10 @@ def _render_flow_builder() -> None:
         return
 
     names = [f.name for f in flows]
+    # Streamlit raises if a selectbox's stored value is no longer an option,
+    # which happens whenever the selected flow is deleted or the model replaced.
+    if st.session_state.get("vb_flow") not in names:
+        st.session_state["vb_flow"] = names[0]
     selected = st.selectbox("Flow to edit", names, key="vb_flow")
     st.button(
         f"Delete flow '{selected}'",
@@ -323,20 +425,27 @@ def _render_visual_tab() -> str:
     with right:
         _render_flow_builder()
 
-    text = compile_dsl(_visual())
+    diagram = _visual()
+    text = compile_dsl(diagram)
 
     st.divider()
     st.markdown("##### Generated DSL (this is what RAID actually parses)")
-    st.code(text or "# nothing to compile yet", language="text")
+    st.code(text, language="text")
 
-    for warning in validate(_visual()):
-        st.warning(warning, icon="⚠️")
+    # A brand new page is not a diagram with problems, so validate()'s "no
+    # services yet" guidance would be noise. It starts once anything exists.
+    if not diagram.services and not diagram.flows:
+        st.caption("Nothing built yet — add a service on the left, or use **Load example** above.")
+    else:
+        for warning in validate(diagram):
+            st.warning(warning, icon="⚠️")
 
     st.button(
         "Copy into the code editor",
         key="vb_copy",
         on_click=_copy_to_code,
         args=(text,),
+        disabled=not text,
         help="Hand-tune the generated DSL — useful for nesting a branch inside a branch.",
     )
     return text
@@ -512,9 +621,13 @@ def main() -> None:
         seed = st.number_input("Random seed", value=0, step=1)
         st.caption("A fixed seed makes every result on this page reproducible.")
 
-    st.session_state.setdefault("visual", login_example())
-    st.session_state.setdefault("code_text", EXAMPLE)
+    # Both inputs start genuinely empty. Nothing is pre-filled, so a fresh load
+    # analyses nothing until the user builds, types, or loads the example.
+    st.session_state.setdefault("visual", VisualDiagram())
+    st.session_state.setdefault("code_text", "")
     st.session_state.setdefault("input_mode", "visual")
+
+    _render_input_controls()
 
     visual_tab, code_tab = st.tabs(["🧩 Build visually", "⌨️ Edit as code"])
 
@@ -522,33 +635,18 @@ def main() -> None:
         visual_source = _render_visual_tab()
 
     with code_tab:
-        st.caption("Type RAID DSL directly. Supports everything the builder does, plus nesting.")
-        st.text_area(
-            "Diagram (RAID DSL)",
-            key="code_text",
-            height=280,
-            on_change=_use_code,
-            help="Editing here makes the code the active input.",
-        )
-        st.button("Use this code", key="use_code", on_click=_use_code)
+        _render_code_tab()
 
     mode = st.session_state["input_mode"]
     source = visual_source if mode == "visual" else st.session_state["code_text"]
 
-    banner, switch = st.columns([5, 1])
-    banner.caption(
-        f"Analysing the diagram from **{'Build visually' if mode == 'visual' else 'Edit as code'}** "
-        f"— whichever you touched last drives the results below."
-    )
-    switch.button(
-        "Use the other",
-        key="swap_mode",
-        on_click=_use_code if mode == "visual" else _use_visual,
-        width="stretch",
-    )
+    st.divider()
 
     if not source.strip():
-        st.info("Nothing to analyse yet — add a service and a flow to get started.")
+        st.info(
+            "Nothing to analyse yet. Build a diagram, type one in **Edit as code**, "
+            "or press **Load example** to start from the Login diagram."
+        )
         return
 
     try:
