@@ -1,5 +1,9 @@
 # RAID — Resilience & Assertion Inference from Diagrams
 
+**Live demo: [softwareengineering.streamlit.app](https://softwareengineering.streamlit.app/)**
+— opens empty; press **Load example** to see it populated, or build your own
+diagram from scratch.
+
 RAID turns a hand-written architecture diagram into a generated test suite, a
 resilience simulation, and a set of chaos experiments — entirely locally, with
 no external API calls. Describe your services and call flows in RAID's own
