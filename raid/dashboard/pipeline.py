@@ -2,7 +2,7 @@
 
 Deliberately free of any Streamlit import. The UI layer is only rendering, so
 everything that could be wrong lives here and is unit tested without a browser
-- which is what CLAUDE.md asks of any module wired into the dashboard.
+- which is what PROJECT_RULES.md asks of any module wired into the dashboard.
 
 Failure policy
 --------------

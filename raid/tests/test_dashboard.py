@@ -2,7 +2,7 @@
 
 The Streamlit app in ``raid.dashboard.app`` is a thin rendering layer over
 :func:`raid.dashboard.analyse`. All the logic lives in the pipeline so it can
-be tested here without a browser, which is what CLAUDE.md requires of anything
+be tested here without a browser, which is what PROJECT_RULES.md requires of anything
 wired into the dashboard.
 
 These tests deliberately exercise diagrams other than PlaceOrder: the demo must

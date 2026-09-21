@@ -6,7 +6,7 @@ The visual builder is strictly an *input layer*. It holds its own small form
 model and emits DSL source text, which then goes through exactly the same
 :func:`raid.dsl.parse` as anything typed by hand. Nothing downstream of
 ``raid/dsl`` knows the builder exists, and there is no second path into the
-analysis - which is what keeps the DSL the single source of truth that CLAUDE.md
+analysis - which is what keeps the DSL the single source of truth that PROJECT_RULES.md
 requires, and what makes "Generated DSL (this is what RAID actually parses)"
 literally true rather than a claim.
 

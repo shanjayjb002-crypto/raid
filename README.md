@@ -87,7 +87,7 @@ raid/
 ```
 
 Every module is independently testable with pytest before it's wired into the
-dashboard. See [`CLAUDE.md`](CLAUDE.md) for the full set of project rules
+dashboard. See [`PROJECT_RULES.md`](PROJECT_RULES.md) for the full set of project rules
 (local-only intelligence, no external diagram notations, fixed dependency
 stack) that every change in this repo follows.
 
