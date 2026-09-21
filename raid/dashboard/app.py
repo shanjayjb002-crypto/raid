@@ -53,8 +53,6 @@ flow PlaceOrder:
   alt payment_failed:
     OrderService -> OrderService : rejectOrder()"""
 
-_SCORE_ICON = {"high": "🟢", "medium": "🟡", "low": "🔴"}
-_SEVERITY_ICON = {"high": "🔴", "medium": "🟡", "low": "🔵"}
 
 
 @st.cache_data(show_spinner=False)
@@ -438,7 +436,7 @@ def _render_visual_tab() -> str:
         st.caption("Nothing built yet — add a service on the left, or use **Load example** above.")
     else:
         for warning in validate(diagram):
-            st.warning(warning, icon="⚠️")
+            st.warning(warning)
 
     st.button(
         "Copy into the code editor",
@@ -474,7 +472,7 @@ def _render_sufficiency(analysis: Analysis) -> None:
     for column, concern in zip(columns[1:], analysis.sufficiency.concerns):
         column.metric(
             concern.concern.title(),
-            f"{_SCORE_ICON[concern.score]} {concern.score}",
+            concern.score,
             help=concern.rationale,
         )
 
@@ -486,7 +484,7 @@ def _render_sufficiency(analysis: Analysis) -> None:
     with st.expander(f"{len(suggestions)} suggestions to improve analysability", expanded=True):
         for suggestion in suggestions:
             st.markdown(
-                f"{_SEVERITY_ICON[suggestion.severity]} **{suggestion.element}** — "
+                f"**[{suggestion.severity}] {suggestion.element}** — "
                 f"{suggestion.message}"
             )
 
@@ -607,8 +605,8 @@ def _render_impact(analysis: Analysis, focus: str | None) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="RAID", page_icon="🛡️", layout="wide")
-    st.title("🛡️ RAID")
+    st.set_page_config(page_title="RAID", layout="wide")
+    st.title("RAID")
     st.caption(
         "Resilience & Assertion Inference from Diagrams — "
         "everything below is derived locally from the diagram alone."
@@ -629,7 +627,7 @@ def main() -> None:
 
     _render_input_controls()
 
-    visual_tab, code_tab = st.tabs(["🧩 Build visually", "⌨️ Edit as code"])
+    visual_tab, code_tab = st.tabs(["Build visually", "Edit as code"])
 
     with visual_tab:
         visual_source = _render_visual_tab()
